@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+            border: none;
+            outline: none;
+            box-sizing: border-box;
+            user-select: none;
+            -ms-user-select: none;
+            -moz-user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .display-none {
+            display: none;
+        }
+
+        body {
+            padding-block: 10px;
+            padding-inline: 5px;
+            background: #222;
+        }
+
+        button {
+            min-width: 30px;
+            padding: 5px;
+            background: #333;
+            color: white;
+            border-radius: 3px;
+        }
+        
+        #new-note-inp {
+            width: 100%;
+            padding: 8px;
+            text-align: center;
+            background: transparent;
+            color: white;
+            border: 1px solid #777;
+            border-radius: 5px;
+        }
+        
+        #speed {
+           display: block;
+           width: 100%;
+           margin-top: 5px;
+        }
+
+        #kbd {
+            width: 100%;
+            margin-top: 5px;
+            overflow: scroll hidden;
+            padding: 10px;
+        }
+
+        #kbd>div {
+            min-width: 100%;
+            display: inline-flex;
+            justify-content: left;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+
+        label {
+            position: relative;
+            display: inline-block;
+            background: #333;
+            color: white;
+            width: 50px;
+            padding: 4px;
+            text-align: center;
+            transition: 0.1s;
+        }
+
+        .duration {
+            display: none;
+        }
+        
+        input[type="checkbox"].display-none:checked + .duration {
+            display: block;
+        }
+
+        #kbd>div:nth-child(2n) {
+            background: #1114;
+        }
+
+        #kbd>div.active>label {
+            background: #08fd;
+        }
+
+        input[type="checkbox"] {
+            margin-left: 3px;
+            opacity: 20%;
+        }
+
+        input[type="checkbox"]:checked,
+        input[type="checkbox"].active {
+            opacity: 100%;
+        }
+
+        input[type="checkbox"].active {
+            box-shadow: 0px 0px 5px #555;
+        }
+
+        input[type="checkbox"]:checked {
+            box-shadow: 0px 0px 20px 20px #08f2;
+            z-index: 2;
+        }
+
+        input[type="checkbox"]:checked.active {
+            filter: hue-rotate(180deg);
+        }
+    </style>
+</head>
+
+<body>
+    <button onclick="removeTempo()">-</button>
+    <button onclick="addTempo()">+</button>
+    <button onclick="replay()">Replay</button>
+    <button onclick="playing = !playing">Play/Pause</button>
+    <button onclick="loop = !loop">Toggle loop</button>
+    <button onclick="sineWave = !sineWave">Toggle wave</button>
+    <input id="speed" type="range" min="10" max="1000" value="950" onchange="speed = 1000-value">
+    <div id="kbd"></div>
+    <button id="new-note">New note</button>
+    <script>
+        var N = 8
+        const beat = []
+
+        for (let i = 100; i <= 1000; i += 100) {
+            createTone(i, i)
+        }
+        
+        const newNote = document.querySelector('#new-note')
+        newNote.onclick = () => {
+            const input = document.createElement('input')
+            input.type = "number"
+            input.id = "new-note-inp"
+            input.placeholder = "Focus out to dismiss"
+            
+            input.addEventListener('focusout', () => {
+                if (String(input.value).length > 0) {
+                    createTone(input.value, input.value)
+                }
+                input.replaceWith(newNote)
+            })
+            
+            newNote.replaceWith(input)
+        }
+
+        function createTone(name, frequency) {
+            const tone = []
+            const div = document.createElement('div')
+
+            const invisibleCheckbox = document.createElement('input')
+            invisibleCheckbox.id = 'tone' + frequency + parseInt(Math.random() * 10000)
+            invisibleCheckbox.type = 'checkbox'
+            invisibleCheckbox.classList.add('display-none')
+            invisibleCheckbox.oninput = () => {
+                tone.forEach(note => {
+                    note.disabled = invisibleCheckbox.checked
+                })
+            }
+            div.appendChild(invisibleCheckbox)
+
+            const durationInput = document.createElement('input')
+            durationInput.type = 'range'
+            durationInput.min = 10
+            durationInput.max = 200
+            durationInput.value = 100
+            durationInput.classList.add('duration')
+            durationInput.oninput = (e) => {
+                tone.duration = e.target.value / 100
+            }
+            div.appendChild(durationInput)
+
+            const lb = document.createElement('label')
+            lb.htmlFor = invisibleCheckbox.id
+            lb.innerText = name
+            div.appendChild(lb)
+            
+            const container = document.createElement('div')
+
+            for (let i = 0; i < N; i++) {
+                const note = document.createElement('input')
+                note.type = 'checkbox'
+                note.classList.add('note')
+                div.appendChild(note)
+                tone.push(note)
+            }
+            kbd.appendChild(div)
+            beat.push(tone)
+            tone.frequency = frequency
+            tone.duration = 1
+            tone.div = div
+        }
+
+        function addTempo() {
+            for (let i in beat) {
+                const div = beat[i].div
+                for (let j = 0; j < 8; j++) {
+                    const note = document.createElement('input')
+                    note.type = 'checkbox'
+                    note.classList.add('note')
+                    div.appendChild(note)
+                    beat[i].push(note)
+                }
+            }
+
+            N += 8
+        }
+
+        function removeTempo() {
+            if (N <= 8) return
+
+            for (let i in beat) {
+                const div = beat[i].div
+                for (let j = 0; j < 8; j++) {
+                    const note = div.lastChild
+                    div.removeChild(note)
+                    beat[i].splice(beat[i].indexOf(), 1)
+                }
+            }
+
+            N -= 8
+            collumn = collumn % N
+        }
+
+        var context = new(window.AudioContext || window.webkitAudioContext)();
+
+        // Função para tocar uma nota usando o Web Audio API
+        function playTone(frequency, duration) {
+            var oscillator = context.createOscillator();
+            var gainNode = context.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(context.destination);
+
+            oscillator.frequency.value = frequency;
+            oscillator.type = sineWave ? 'sine' : 'square';
+
+            gainNode.gain.setValueAtTime(1, context.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+
+            oscillator.start(context.currentTime);
+            oscillator.stop(context.currentTime + duration);
+        }
+
+        var speed = 50
+        var time = Date.now()
+        var collumn = 0
+        var playing = true
+        var loop = true
+        var sineWave = false
+
+        function play() {
+            if (!playing) {
+                time = Date.now()
+                requestAnimationFrame(play)
+                return
+            }
+
+            if (Date.now() - time > speed) {
+                time = Date.now()
+                for (let i in beat) {
+                    var tone = beat[i]
+                    if (tone[collumn].checked) {
+                        playTone(tone.frequency, tone.duration)
+                        tone[collumn].parentNode.classList.add('active')
+                    } else {
+                        tone[collumn].parentNode.classList.remove('active')
+                    }
+
+                    tone[collumn].classList.add('active')
+
+                    const lastcollumn = collumn > 0 ? collumn - 1 : N - 1
+                    tone[lastcollumn].classList.remove('active')
+                }
+
+                if (!loop && collumn + 1 == N) {
+                    playing = false
+                }
+
+                collumn = ++collumn % N
+            }
+            requestAnimationFrame(play)
+        }
+
+        function replay() {
+            playing = true
+            collumn = 0;
+            document.querySelectorAll("input.active").forEach(i => {
+                i.classList.remove('active')
+            })
+        }
+
+        play()
+    </script>
+</body>
+
+</html>
